@@ -110,6 +110,35 @@ impl PartialOrd for OnePairData {
     }
 }
 
+#[derive(Eq, PartialEq, Ord, Debug)]
+struct TwoPairsData {
+    high_pair_value: u8,
+    low_pair_value: u8,
+    remaining_card: u8,
+}
+
+impl TwoPairsData {
+    fn new(high_pair_value: u8, low_pair_value: u8, remaining_card: u8) -> Self {
+        Self {
+            high_pair_value, low_pair_value, remaining_card
+        }
+    }
+}
+
+impl PartialOrd for TwoPairsData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let cmp_high_pair_value = self.high_pair_value.cmp(&other.high_pair_value);
+        if cmp_high_pair_value != Ordering::Equal {
+            return Some(cmp_high_pair_value);
+        }
+        let cmp_low_pair_value = self.low_pair_value.cmp(&other.low_pair_value);
+        if cmp_low_pair_value != Ordering::Equal {
+            return Some(cmp_low_pair_value);
+        }
+        Some(self.remaining_card.cmp(&other.remaining_card))
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 enum HandType {
   StraightFlush(HighCardData), FourOfAKind(u8,u8), FullHouse(u8, u8), Flush(HighCardData), Straight(HighCardData), ThreeOfAKind(u8, Vec<u8>), 
@@ -307,19 +336,6 @@ impl<'a> PokerHand<'a> {
     HighCardData::new(ov.clone()).cmp(&HighCardData::new(sv.clone()))
   }
 
-  fn compare_two_pairs(self_high_pair: &u8, self_low_pair: &u8, sv: &u8, other_high_pair: &u8, other_low_pair: &u8, ov: &u8) -> Ordering {
-    let cmp_high_pair = other_high_pair.cmp(&self_high_pair);
-    if cmp_high_pair != Ordering::Equal {
-        return cmp_high_pair;
-    }
-    let cmp_low_pair = other_low_pair.cmp(&self_low_pair);
-    if cmp_low_pair != Ordering::Equal {
-        return cmp_low_pair;
-    }
-
-    ov.cmp(&sv)
-  }
-
 }
 
 impl<'a> Ord for PokerHand<'a> {
@@ -361,7 +377,9 @@ impl<'a> Ord for PokerHand<'a> {
             (HandType::ThreeOfAKind(self_kind_value, sv), HandType::ThreeOfAKind(other_kind_value, ov)) => 
                 PokerHand::compare_three_of_a_kind(self_kind_value, sv, other_kind_value, ov),
             (HandType::TwoPairs(self_high_pair, self_low_pair, sv), HandType::TwoPairs(other_high_pair, other_low_pair, ov)) => 
-                PokerHand::compare_two_pairs(self_high_pair, self_low_pair, sv, other_high_pair, other_low_pair, ov),
+                TwoPairsData::new(*other_high_pair, *other_low_pair, *ov).cmp(
+                    &TwoPairsData::new(*self_high_pair, *self_low_pair, *sv)
+                ),
             (HandType::OnePair(self_pair_value, sv), HandType::OnePair(other_pair_value, ov)) => 
                 OnePairData::new(*other_pair_value, ov.clone()).cmp(&OnePairData::new(*self_pair_value, sv.clone())),
             (_,_) => panic!("Unexpected match!")
