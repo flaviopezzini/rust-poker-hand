@@ -1,14 +1,17 @@
-use std::{cmp, convert::TryFrom};
 /// Given a list of poker hands, return a list of those hands which win.
 ///
 /// Note the type signature: this function should return _the same_ reference to
 /// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::{cmp, convert::TryFrom};
 
 #[derive(Debug, PartialEq)]
 enum Suit {
-    Clubs, Diamonds, Hearts, Spades,
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades,
 }
 
 impl TryFrom<char> for Suit {
@@ -20,7 +23,7 @@ impl TryFrom<char> for Suit {
             'D' => Ok(Suit::Diamonds),
             'H' => Ok(Suit::Hearts),
             'S' => Ok(Suit::Spades),
-            _ => Err("Invalid Suit".into())
+            _ => Err("Invalid Suit".into()),
         }
     }
 }
@@ -56,10 +59,6 @@ impl Card {
             _ => panic!("Invalid card length"),
         };
 
-        let suit = str_card.chars().nth(size - 1).unwrap();
-        if suit != 'D' && suit != 'C' && suit != 'S' && suit != 'H' {
-            return Err(format!("Invalid suit: {}", suit));
-        }
         let numeric_value = match value {
             '2'..='9' => value.to_digit(10).unwrap() as u8,
             'T' => 10,
@@ -70,6 +69,7 @@ impl Card {
             _ => return Err("Invalid value".into()),
         };
 
+        let suit = str_card.chars().nth(size - 1).unwrap();
         let suit = match Suit::try_from(suit) {
             Ok(suit) => suit,
             Err(err) => return Err(err),
