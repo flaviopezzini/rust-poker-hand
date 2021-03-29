@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, convert::TryFrom};
 /// Given a list of poker hands, return a list of those hands which win.
 ///
 /// Note the type signature: this function should return _the same_ reference to
@@ -6,9 +6,28 @@ use std::cmp;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+#[derive(Debug, PartialEq)]
+enum Suit {
+    Clubs, Diamonds, Hearts, Spades,
+}
+
+impl TryFrom<char> for Suit {
+    type Error = String;
+
+    fn try_from(s: char) -> Result<Self, Self::Error> {
+        match s {
+            'C' => Ok(Suit::Clubs),
+            'D' => Ok(Suit::Diamonds),
+            'H' => Ok(Suit::Hearts),
+            'S' => Ok(Suit::Spades),
+            _ => Err("Invalid Suit".into())
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Card {
-    suit: char,
+    suit: Suit,
     numeric_value: u8,
 }
 
@@ -49,6 +68,11 @@ impl Card {
             'K' => Card::KING,
             'A' => Card::ACE,
             _ => return Err("Invalid value".into()),
+        };
+
+        let suit = match Suit::try_from(suit) {
+            Ok(suit) => suit,
+            Err(err) => return Err(err),
         };
 
         Ok(Self {
@@ -348,7 +372,7 @@ impl<'a> PokerHand<'a> {
         cards.sort_by(|a, b| a.numeric_value.cmp(&b.numeric_value));
 
         let first_card = &cards[0];
-        let mut previous_suit = first_card.suit;
+        let mut previous_suit = &first_card.suit;
         let mut previous_value = 0;
         let mut suit_counter = 0;
         let mut straight_counter = 1;
@@ -358,11 +382,11 @@ impl<'a> PokerHand<'a> {
         let mut starts_at_two = false;
 
         for card in &cards {
-            if card.suit == previous_suit {
+            if &card.suit == previous_suit {
                 suit_counter += 1;
             } else {
                 suit_counter = 0;
-                previous_suit = card.suit;
+                previous_suit = &card.suit;
             }
             if previous_value == 0 {
                 if card.numeric_value == 2 {
