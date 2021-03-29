@@ -58,7 +58,7 @@ impl Card {
 
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct HighCardData {
     cards: Vec<u8>,
 }
@@ -73,19 +73,25 @@ impl HighCardData {
 
 impl PartialOrd for HighCardData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl Ord for HighCardData {
+    fn cmp(&self, other: &Self) -> Ordering {
         for i in (0..self.cards.len()).rev() {
             let self_value = self.cards[i];
             let other_value = other.cards[i];
       
             if self_value != other_value {
-              return Some(other_value.cmp(&self_value));
+              return self_value.cmp(&other_value);
             }
         }
-        Some(Ordering::Equal)
+        Ordering::Equal
     }
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct OnePairData {
     pair_value: u8,
     remaining_cards: Vec<u8>,
@@ -101,16 +107,22 @@ impl OnePairData {
 
 impl PartialOrd for OnePairData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let cmp_pair_value = self.pair_value.cmp(&other.pair_value);
-        if cmp_pair_value != Ordering::Equal {
-            return Some(cmp_pair_value);
-        }
-        Some(HighCardData::new(
-            self.remaining_cards.clone()).cmp(&HighCardData::new(other.remaining_cards.clone())))
+        Some(self.cmp(&other))
     }
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+impl Ord for OnePairData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let cmp_pair_value = self.pair_value.cmp(&other.pair_value);
+        if cmp_pair_value != Ordering::Equal {
+            return cmp_pair_value;
+        }
+        HighCardData::new(
+            self.remaining_cards.clone()).cmp(&HighCardData::new(other.remaining_cards.clone()))
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 struct TwoPairsData {
     high_pair_value: u8,
     low_pair_value: u8,
@@ -127,19 +139,25 @@ impl TwoPairsData {
 
 impl PartialOrd for TwoPairsData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let cmp_high_pair_value = self.high_pair_value.cmp(&other.high_pair_value);
-        if cmp_high_pair_value != Ordering::Equal {
-            return Some(cmp_high_pair_value);
-        }
-        let cmp_low_pair_value = self.low_pair_value.cmp(&other.low_pair_value);
-        if cmp_low_pair_value != Ordering::Equal {
-            return Some(cmp_low_pair_value);
-        }
-        Some(self.remaining_card.cmp(&other.remaining_card))
+        Some(self.cmp(&other))
     }
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+impl Ord for TwoPairsData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let cmp_high_pair_value = self.high_pair_value.cmp(&other.high_pair_value);
+        if cmp_high_pair_value != Ordering::Equal {
+            return cmp_high_pair_value;
+        }
+        let cmp_low_pair_value = self.low_pair_value.cmp(&other.low_pair_value);
+        if cmp_low_pair_value != Ordering::Equal {
+            return cmp_low_pair_value;
+        }
+        self.remaining_card.cmp(&other.remaining_card)
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 struct ThreeOfAKindData {
     three_of_a_kind_value: u8,
     remaining_cards: Vec<u8>
@@ -155,16 +173,63 @@ impl ThreeOfAKindData {
 
 impl PartialOrd for ThreeOfAKindData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let cmp_value = self.three_of_a_kind_value.cmp(&other.three_of_a_kind_value);
-        if cmp_value != Ordering::Equal {
-            return Some(cmp_value);
-        }
-        Some(HighCardData::new(
-            self.remaining_cards.clone()).cmp(&HighCardData::new(other.remaining_cards.clone())))
+        Some(self.cmp(&other))
     }
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+impl Ord for ThreeOfAKindData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let cmp_value = self.three_of_a_kind_value.cmp(&other.three_of_a_kind_value);
+        if cmp_value != Ordering::Equal {
+            return cmp_value;
+        }
+        HighCardData::new(
+            self.remaining_cards.clone()).cmp(&HighCardData::new(other.remaining_cards.clone()))
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
+struct StraightData {
+    cards: Vec<u8>,
+}
+
+impl StraightData {
+    fn new(cards: Vec<u8>) -> Self {
+        Self {
+            cards: cards,
+        }
+    }
+}
+
+impl PartialOrd for StraightData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl Ord for StraightData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        println!("PASSING HERE LOOK HOW COOL: ");
+        let sv = &self.cards;
+        let ov = &other.cards;
+        let self_vec: Vec<u8>;
+        if sv[0] == 2 && sv[sv.len() - 1] == Card::ACE {
+            self_vec = vec![1, sv[0], sv[1], sv[2], sv[3]];
+        } else {
+            self_vec = sv.clone();
+        }
+        let other_vec: Vec<u8>;
+        if ov[0] == 2 && ov[ov.len() - 1] == Card::ACE {
+            other_vec = vec![1, ov[0], ov[1], ov[2], ov[3]];
+        } else {
+            other_vec = ov.clone();
+        }
+
+        HighCardData::new(self_vec).cmp(&HighCardData::new(other_vec))
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 struct FullHouseData {
     three_of_a_kind_value: u8,
     pair_value: u8,
@@ -180,11 +245,17 @@ impl FullHouseData {
 
 impl PartialOrd for FullHouseData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl Ord for FullHouseData {
+    fn cmp(&self, other: &Self) -> Ordering {
         let cmp_three = self.three_of_a_kind_value.cmp(&other.three_of_a_kind_value);
         if cmp_three != Ordering::Equal {
-            return Some(cmp_three);
+            return cmp_three;
         }
-        Some(self.pair_value.cmp(&other.pair_value))
+        self.pair_value.cmp(&other.pair_value)
     }
 }
 
@@ -218,7 +289,7 @@ enum HandType {
   FourOfAKind(FourOfAKindData), 
   FullHouse(FullHouseData), 
   Flush(HighCardData), 
-  Straight(HighCardData), 
+  Straight(StraightData), 
   ThreeOfAKind(ThreeOfAKindData), 
   TwoPairs(TwoPairsData), 
   OnePair(OnePairData), 
@@ -326,7 +397,7 @@ impl<'a> PokerHand<'a> {
     if is_straight {
         return Ok(PokerHand::new_from_values(
             str_hand, 
-            HandType::Straight(HighCardData::new(sorted_numeric_values))));
+            HandType::Straight(StraightData::new(sorted_numeric_values))));
     }
 
     let mut has_three = false;
@@ -401,7 +472,7 @@ impl<'a> PokerHand<'a> {
 
 impl<'a> Ord for PokerHand<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let value_cmp = other.hand_type.rank().cmp(&self.hand_type.rank());
+        let value_cmp = self.hand_type.rank().cmp(&other.hand_type.rank());
         if value_cmp != Ordering::Equal {
             return value_cmp;
         }
@@ -410,32 +481,13 @@ impl<'a> Ord for PokerHand<'a> {
         let cmp_result = match (&self.hand_type, &other.hand_type) {
             (HandType::StraightFlush(self_value), HandType::StraightFlush(other_value)) |
             (HandType::Flush(self_value), HandType::Flush(other_value)) |
-            (HandType::HighCard(self_value), HandType::HighCard(other_value)) => other_value.cmp(&self_value),
-            (HandType::Straight(high_card_sv), HandType::Straight(high_card_ov)) => {
-                let sv = &high_card_sv.cards;
-                let ov = &high_card_ov.cards;
-                let self_vec: Vec<u8>;
-                let sv_last = sv.len() - 1;
-                if sv[0] == 2 && sv[sv_last] == Card::ACE {
-                    self_vec = vec![1, sv[0], sv[1], sv[2], sv[3]];
-                } else {
-                    self_vec = sv.clone();
-                }
-                let other_vec: Vec<u8>;
-                let ov_last = ov.len() - 1;
-                if ov[0] == 2 && ov[sv_last] == Card::ACE {
-                    other_vec = vec![ov[ov_last], ov[0], ov[1], ov[2], ov[3]];
-                } else {
-                    other_vec = ov.clone();
-                }
-
-                HighCardData::new(other_vec).cmp(&HighCardData::new(self_vec))
-            },
-            (HandType::FourOfAKind(self_value), HandType::FourOfAKind(other_value)) => other_value.cmp(&self_value),
-            (HandType::FullHouse(self_value), HandType::FullHouse(other_value)) => other_value.cmp(&self_value),
-            (HandType::ThreeOfAKind(self_value), HandType::ThreeOfAKind(other_value)) => other_value.cmp(&self_value),
-            (HandType::TwoPairs(self_value), HandType::TwoPairs(other_value)) => other_value.cmp(&self_value),
-            (HandType::OnePair(self_value), HandType::OnePair(other_value)) => other_value.cmp(&self_value),
+            (HandType::HighCard(self_value), HandType::HighCard(other_value)) => self_value.cmp(&other_value),
+            (HandType::Straight(self_value), HandType::Straight(other_value)) => self_value.cmp(&other_value),
+            (HandType::FourOfAKind(self_value), HandType::FourOfAKind(other_value)) => self_value.cmp(&other_value),
+            (HandType::FullHouse(self_value), HandType::FullHouse(other_value)) => self_value.cmp(&other_value),
+            (HandType::ThreeOfAKind(self_value), HandType::ThreeOfAKind(other_value)) => self_value.cmp(&other_value),
+            (HandType::TwoPairs(self_value), HandType::TwoPairs(other_value)) => self_value.cmp(&other_value),
+            (HandType::OnePair(self_value), HandType::OnePair(other_value)) => self_value.cmp(&other_value),
             (_,_) => panic!("Unexpected match!")
         };
 
@@ -476,6 +528,7 @@ pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
     }
 
     processed_hands.sort();
+    processed_hands.reverse();
 
     let mut result = Vec::new();
     let highest_hand = &processed_hands[0];
