@@ -188,10 +188,34 @@ impl PartialOrd for FullHouseData {
     }
 }
 
+#[derive(Eq, PartialEq, Ord, Debug)]
+struct FourOfAKindData {
+    four_of_a_kind_value: u8,
+    remaining_card: u8,
+}
+
+impl FourOfAKindData {
+    fn new(four_of_a_kind_value: u8, remaining_card: u8) -> Self {
+        Self {
+            four_of_a_kind_value, remaining_card
+        }
+    }
+}
+
+impl PartialOrd for FourOfAKindData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let cmp = self.four_of_a_kind_value.cmp(&other.four_of_a_kind_value);
+        if cmp != Ordering::Equal {
+            return Some(cmp);
+        }
+        Some(self.remaining_card.cmp(&other.remaining_card))
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 enum HandType {
   StraightFlush(HighCardData), 
-  FourOfAKind(u8,u8), 
+  FourOfAKind(FourOfAKindData), 
   FullHouse(FullHouseData), 
   Flush(HighCardData), 
   Straight(HighCardData), 
@@ -205,7 +229,7 @@ impl HandType {
     fn rank(&self) -> u8 {
         match self {
             HandType::StraightFlush(_) => 9,
-            HandType::FourOfAKind(_, _) => 8,
+            HandType::FourOfAKind(_) => 8,
             HandType::FullHouse(_) => 7,
             HandType::Flush(_) => 6, 
             HandType::Straight(_) => 5,
@@ -315,7 +339,9 @@ impl<'a> PokerHand<'a> {
     for (key, value) in kind_count_map {
         if value == 4 {
             let the_other_card: Vec<&u8> = sorted_numeric_values.iter().filter(|v| *v != &key).collect();
-            return Ok(PokerHand::new_from_values(str_hand, HandType::FourOfAKind(key, *the_other_card[0])));
+            return Ok(PokerHand::new_from_values(
+                str_hand, 
+                HandType::FourOfAKind(FourOfAKindData::new(key, *the_other_card[0]))));
         } else if value == 3 {
             has_three = true;
             three_of_a_kind_value = key;
@@ -371,14 +397,6 @@ impl<'a> PokerHand<'a> {
     straight_counter == 4 && starts_at_two && last_card_numeric_value == Card::ACE
   }
 
-  fn compare_four_of_a_kind(self_kind_value: &u8, sv: &u8, other_kind_value: &u8, ov: &u8) -> Ordering {
-    let cmp_kind_value = other_kind_value.cmp(&self_kind_value);
-    if cmp_kind_value != Ordering::Equal {
-        return cmp_kind_value;
-    }
-    ov.cmp(&sv)    
-  }
-
 }
 
 impl<'a> Ord for PokerHand<'a> {
@@ -413,8 +431,7 @@ impl<'a> Ord for PokerHand<'a> {
 
                 HighCardData::new(other_vec).cmp(&HighCardData::new(self_vec))
             },
-            (HandType::FourOfAKind(self_kind_value, sv), HandType::FourOfAKind(other_kind_value, ov)) => 
-                PokerHand::compare_four_of_a_kind(self_kind_value, sv, other_kind_value, ov),
+            (HandType::FourOfAKind(self_value), HandType::FourOfAKind(other_value)) => other_value.cmp(&self_value),
             (HandType::FullHouse(self_value), HandType::FullHouse(other_value)) => other_value.cmp(&self_value),
             (HandType::ThreeOfAKind(self_value), HandType::ThreeOfAKind(other_value)) => other_value.cmp(&self_value),
             (HandType::TwoPairs(self_value), HandType::TwoPairs(other_value)) => other_value.cmp(&self_value),
