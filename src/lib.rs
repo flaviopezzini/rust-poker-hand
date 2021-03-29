@@ -60,22 +60,22 @@ impl Card {
 
 #[derive(Eq, PartialEq, Ord, Debug)]
 struct HighCardData {
-    cards_sorted_by_highest_numeric_value: Vec<u8>,
+    cards: Vec<u8>,
 }
 
 impl HighCardData {
     fn new(cards: Vec<u8>) -> Self {
         Self {
-            cards_sorted_by_highest_numeric_value: cards,
+            cards: cards,
         }
     }
 }
 
-impl<'a> PartialOrd for HighCardData {
+impl PartialOrd for HighCardData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        for i in (0..self.cards_sorted_by_highest_numeric_value.len()).rev() {
-            let self_value = self.cards_sorted_by_highest_numeric_value[i];
-            let other_value = other.cards_sorted_by_highest_numeric_value[i];
+        for i in (0..self.cards.len()).rev() {
+            let self_value = self.cards[i];
+            let other_value = other.cards[i];
       
             if self_value != other_value {
               return Some(other_value.cmp(&self_value));
@@ -85,7 +85,32 @@ impl<'a> PartialOrd for HighCardData {
     }
 }
 
-#[derive(Eq, Debug)]
+#[derive(Eq, PartialEq, Ord, Debug)]
+struct OnePairData {
+    pair_value: u8,
+    remaining_cards: Vec<u8>,
+}
+
+impl OnePairData {
+    fn new(pair_value: u8, remaining_cards: Vec<u8>) -> Self {
+        Self {
+            pair_value, remaining_cards,
+        }
+    }
+}
+
+impl PartialOrd for OnePairData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let cmp_pair_value = self.pair_value.cmp(&other.pair_value);
+        if cmp_pair_value != Ordering::Equal {
+            return Some(cmp_pair_value);
+        }
+        Some(HighCardData::new(
+            self.remaining_cards.clone()).cmp(&HighCardData::new(other.remaining_cards.clone())))
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
 enum HandType {
   StraightFlush(HighCardData), FourOfAKind(u8,u8), FullHouse(u8, u8), Flush(HighCardData), Straight(HighCardData), ThreeOfAKind(u8, Vec<u8>), 
        TwoPairs(u8, u8, u8), OnePair(u8, Vec<u8>), HighCard(HighCardData),
@@ -104,12 +129,6 @@ impl HandType {
             HandType::OnePair(_,_) => 2,
             HandType::HighCard(_) => 1
         }
-    }
-}
-
-impl PartialEq for HandType {
-    fn eq(&self, other: &Self) -> bool {
-        self.rank() == other.rank() 
     }
 }
 
@@ -301,14 +320,6 @@ impl<'a> PokerHand<'a> {
     ov.cmp(&sv)
   }
 
-  fn compare_pair(self_pair_value: &u8, sv: &Vec<u8>, other_pair_value: &u8, ov: &Vec<u8>) -> Ordering {
-    let cmp_pair_value = other_pair_value.cmp(&self_pair_value);
-    if cmp_pair_value != Ordering::Equal {
-        return cmp_pair_value;
-    }
-    HighCardData::new(sv.clone()).cmp(&HighCardData::new(ov.clone()))
-  }
-
 }
 
 impl<'a> Ord for PokerHand<'a> {
@@ -324,8 +335,8 @@ impl<'a> Ord for PokerHand<'a> {
             (HandType::Flush(sv), HandType::Flush(ov)) |
             (HandType::HighCard(sv), HandType::HighCard(ov)) => ov.cmp(&sv),
             (HandType::Straight(high_card_sv), HandType::Straight(high_card_ov)) => {
-                let sv = &high_card_sv.cards_sorted_by_highest_numeric_value;
-                let ov = &high_card_ov.cards_sorted_by_highest_numeric_value;
+                let sv = &high_card_sv.cards;
+                let ov = &high_card_ov.cards;
                 let self_vec: Vec<u8>;
                 let sv_last = sv.len() - 1;
                 if sv[0] == 2 && sv[sv_last] == Card::ACE {
@@ -352,11 +363,11 @@ impl<'a> Ord for PokerHand<'a> {
             (HandType::TwoPairs(self_high_pair, self_low_pair, sv), HandType::TwoPairs(other_high_pair, other_low_pair, ov)) => 
                 PokerHand::compare_two_pairs(self_high_pair, self_low_pair, sv, other_high_pair, other_low_pair, ov),
             (HandType::OnePair(self_pair_value, sv), HandType::OnePair(other_pair_value, ov)) => 
-                PokerHand::compare_pair(self_pair_value, sv, other_pair_value, ov),
+                OnePairData::new(*other_pair_value, ov.clone()).cmp(&OnePairData::new(*self_pair_value, sv.clone())),
             (_,_) => panic!("Unexpected match!")
         };
 
-        cmp_result 
+        cmp_result
     }
 }
 
@@ -371,7 +382,6 @@ impl<'a> PartialEq for PokerHand<'a> {
         self.hand_type == other.hand_type 
     }
 }
-
 
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
     let size = hands.len();
