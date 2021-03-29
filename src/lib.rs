@@ -209,7 +209,6 @@ impl PartialOrd for StraightData {
 
 impl Ord for StraightData {
     fn cmp(&self, other: &Self) -> Ordering {
-        println!("PASSING HERE LOOK HOW COOL: ");
         let sv = &self.cards;
         let ov = &other.cards;
         let self_vec: Vec<u8>;
@@ -259,7 +258,7 @@ impl Ord for FullHouseData {
     }
 }
 
-#[derive(Eq, PartialEq, Ord, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 struct FourOfAKindData {
     four_of_a_kind_value: u8,
     remaining_card: u8,
@@ -275,15 +274,21 @@ impl FourOfAKindData {
 
 impl PartialOrd for FourOfAKindData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let cmp = self.four_of_a_kind_value.cmp(&other.four_of_a_kind_value);
-        if cmp != Ordering::Equal {
-            return Some(cmp);
-        }
-        Some(self.remaining_card.cmp(&other.remaining_card))
+        Some(self.cmp(&other))
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+impl Ord for FourOfAKindData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let cmp = self.four_of_a_kind_value.cmp(&other.four_of_a_kind_value);
+        if cmp != Ordering::Equal {
+            return cmp;
+        }
+        self.remaining_card.cmp(&other.remaining_card)
+    }
+}
+
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug)]
 enum HandType {
   StraightFlush(HighCardData), 
   FourOfAKind(FourOfAKindData), 
@@ -472,26 +477,11 @@ impl<'a> PokerHand<'a> {
 
 impl<'a> Ord for PokerHand<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let value_cmp = self.hand_type.rank().cmp(&other.hand_type.rank());
-        if value_cmp != Ordering::Equal {
-            return value_cmp;
+        let rank_cmp = self.hand_type.rank().cmp(&other.hand_type.rank());
+        if rank_cmp != Ordering::Equal {
+            return rank_cmp;
         }
-
-        // break ties
-        let cmp_result = match (&self.hand_type, &other.hand_type) {
-            (HandType::StraightFlush(self_value), HandType::StraightFlush(other_value)) |
-            (HandType::Flush(self_value), HandType::Flush(other_value)) |
-            (HandType::HighCard(self_value), HandType::HighCard(other_value)) => self_value.cmp(&other_value),
-            (HandType::Straight(self_value), HandType::Straight(other_value)) => self_value.cmp(&other_value),
-            (HandType::FourOfAKind(self_value), HandType::FourOfAKind(other_value)) => self_value.cmp(&other_value),
-            (HandType::FullHouse(self_value), HandType::FullHouse(other_value)) => self_value.cmp(&other_value),
-            (HandType::ThreeOfAKind(self_value), HandType::ThreeOfAKind(other_value)) => self_value.cmp(&other_value),
-            (HandType::TwoPairs(self_value), HandType::TwoPairs(other_value)) => self_value.cmp(&other_value),
-            (HandType::OnePair(self_value), HandType::OnePair(other_value)) => self_value.cmp(&other_value),
-            (_,_) => panic!("Unexpected match!")
-        };
-
-        cmp_result
+        self.hand_type.cmp(&other.hand_type)
     }
 }
 
@@ -519,12 +509,12 @@ pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
     let mut processed_hands : Vec<PokerHand> = Vec::new();
 
     for hand in hands {
-        let hand_type = match PokerHand::new(hand) {
-            Ok(hand_type) => hand_type,
+        let processed_hand = match PokerHand::new(hand) {
+            Ok(processed_hand) => processed_hand,
             Err(_) => return None,
         };
         
-        processed_hands.push(hand_type);
+        processed_hands.push(processed_hand);
     }
 
     processed_hands.sort();
