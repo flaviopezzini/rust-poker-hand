@@ -37,6 +37,14 @@ fn test_highest_card_of_all_hands_wins() {
 }
 
 #[test]
+fn test_highest_straight_wins() {
+    test(
+        &["10D JS QS KD AC", "9S 10S JD QH QH"],
+        &["10D JS QS KD AC"],
+    )
+}
+
+#[test]
 
 fn test_a_tie_has_multiple_winners() {
     test(

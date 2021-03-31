@@ -30,7 +30,6 @@ impl TryFrom<char> for Suit {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 enum Rank {
-    NoValue = 0,
     Two = 2,
     Three = 3,
     Four = 4,
@@ -47,7 +46,6 @@ enum Rank {
 }
 
 impl FromStr for Rank {
-
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -79,7 +77,7 @@ struct Card {
 impl FromStr for Card {
     type Err = String;
     fn from_str(str_card: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-        let size = str_card.len();
+        let size = str_card.chars().count();
         if !(2..=3).contains(&size) {
             return Err("Invalid card length".into());
         }
@@ -92,7 +90,7 @@ impl FromStr for Card {
 
         let rank = Rank::from_str(value)?;
 
-        let suit = str_card.chars().nth(size - 1).unwrap();
+        let suit = str_card.chars().last().unwrap();
         let suit = Suit::try_from(suit)?;
 
         Ok(Card::new(suit, rank))
@@ -101,10 +99,7 @@ impl FromStr for Card {
 
 impl Card {
     fn new(suit: Suit, rank: Rank) -> Self {
-        Self {
-            suit,
-            rank,
-        }
+        Self { suit, rank }
     }
 }
 
@@ -256,7 +251,7 @@ impl FromStr for PokerHand {
     type Err = String;
     fn from_str(str_hand: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
         let mut cards: Vec<Card> = Vec::new();
-        let split = str_hand.split(' ');
+        let split = str_hand.split_whitespace();
         for s in split {
             let possible_new_card = Card::from_str(s);
             let new_card = match possible_new_card {
@@ -266,45 +261,10 @@ impl FromStr for PokerHand {
             cards.push(new_card);
         }
 
-        cards.sort_by(|a, b| a.rank.cmp(&b.rank));
+        cards.sort_unstable_by(|a, b| a.rank.cmp(&b.rank));
 
-        let first_card = &cards[0];
-        let mut previous_suit = &first_card.suit;
-        let mut previous_value = Rank::NoValue;
-        let mut suit_counter = 0;
-        let mut straight_counter = 1;
-
-        let mut kind_count_map: HashMap<u8, usize> = HashMap::new();
-
-        let mut starts_at_two = false;
-
-        for card in &cards {
-            if &card.suit == previous_suit {
-                suit_counter += 1;
-            } else {
-                suit_counter = 0;
-                previous_suit = &card.suit;
-            }
-            if previous_value == Rank::NoValue {
-                if card.rank == Rank::Two {
-                    starts_at_two = true;
-                } else {
-                    previous_value = card.rank;
-                }
-            } else if card.rank as u8 == (previous_value as u8 + 1) {
-                straight_counter += 1;
-            }
-            if card.rank != previous_value {
-                previous_value = card.rank;
-            }
-            *kind_count_map.entry(card.rank as u8).or_insert(0) += 1;
-        }
-        let is_flush = suit_counter == 5;
-        let is_straight = PokerHand::is_straight(
-            straight_counter,
-            starts_at_two,
-            cards.iter().last().unwrap().rank as u8,
-        );
+        let is_flush = PokerHand::is_flush(&cards);
+        let is_straight = PokerHand::is_straight(&cards);
 
         let sorted_numeric_values: Vec<u8> = cards.iter().map(|c| c.rank as u8).collect();
 
@@ -325,6 +285,13 @@ impl FromStr for PokerHand {
                 sorted_numeric_values,
             ))));
         }
+
+        let kind_count_map: HashMap<u8, usize> = cards.iter().fold(
+            HashMap::new(), 
+            |mut acc, c| {
+                *acc.entry(c.rank as u8).or_insert(0) += 1;
+                acc
+        });
 
         let mut has_three = false;
         let mut pair_count = 0;
@@ -406,26 +373,20 @@ impl PokerHand {
         Self { hand_type }
     }
 
-    fn is_straight(
-        straight_counter: usize,
-        starts_at_two: bool,
-        last_card_numeric_value: u8,
-    ) -> bool {
-        straight_counter == 5
-            || PokerHand::is_straight_starting_with_ace(
-                straight_counter,
-                starts_at_two,
-                last_card_numeric_value,
-            )
+    fn is_flush(cards: &Vec<Card>) -> bool {
+        let first_card = &cards[0];
+        cards.iter().all(|item| item.suit == first_card.suit)
     }
 
-    fn is_straight_starting_with_ace(
-        straight_counter: usize,
-        starts_at_two: bool,
-        last_card_numeric_value: u8,
-    ) -> bool {
-        straight_counter == 4 && starts_at_two && last_card_numeric_value == Rank::Ace as u8
+    fn is_straight(cards: &Vec<Card>) -> bool {
+        cards.windows(2).all(|w| w[1].rank as u8 == w[0].rank as u8 + 1) ||
+        PokerHand::is_straight_from_ace(cards)
     }
+
+    fn is_straight_from_ace(cards: &Vec<Card>) -> bool {
+        cards[0].rank == Rank::Two && cards[1].rank == Rank::Three && cards[2].rank == Rank::Four && cards[3].rank == Rank::Five && cards[4].rank == Rank::Ace
+    }
+
 }
 
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
