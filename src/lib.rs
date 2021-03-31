@@ -1,10 +1,10 @@
+use std::collections::HashMap;
+use std::{cmp, convert::TryFrom};
 /// Given a list of poker hands, return a list of those hands which win.
 ///
 /// Note the type signature: this function should return _the same_ reference to
 /// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
 use std::{cmp::Ordering, str::FromStr};
-use std::collections::HashMap;
-use std::{cmp, convert::TryFrom};
 
 #[derive(Debug, PartialEq)]
 enum Suit {
@@ -35,9 +35,8 @@ struct Card {
 }
 
 impl FromStr for Card {
-    
     type Err = String;
-    fn from_str(str_card: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> { 
+    fn from_str(str_card: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
         let size = str_card.len();
         if !(2..=3).contains(&size) {
             return Err("Invalid card length".into());
@@ -90,7 +89,7 @@ impl Card {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct HighCardData {
     cards: Vec<u8>,
 }
@@ -101,27 +100,7 @@ impl HighCardData {
     }
 }
 
-impl PartialOrd for HighCardData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for HighCardData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        for i in (0..self.cards.len()).rev() {
-            let self_value = self.cards[i];
-            let other_value = other.cards[i];
-
-            if self_value != other_value {
-                return self_value.cmp(&other_value);
-            }
-        }
-        Ordering::Equal
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct OnePairData {
     pair_value: u8,
     remaining_cards: Vec<u8>,
@@ -136,24 +115,7 @@ impl OnePairData {
     }
 }
 
-impl PartialOrd for OnePairData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for OnePairData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let cmp_pair_value = self.pair_value.cmp(&other.pair_value);
-        if cmp_pair_value != Ordering::Equal {
-            return cmp_pair_value;
-        }
-        HighCardData::new(self.remaining_cards.clone())
-            .cmp(&HighCardData::new(other.remaining_cards.clone()))
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct TwoPairsData {
     high_pair_value: u8,
     low_pair_value: u8,
@@ -170,27 +132,7 @@ impl TwoPairsData {
     }
 }
 
-impl PartialOrd for TwoPairsData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for TwoPairsData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let cmp_high_pair_value = self.high_pair_value.cmp(&other.high_pair_value);
-        if cmp_high_pair_value != Ordering::Equal {
-            return cmp_high_pair_value;
-        }
-        let cmp_low_pair_value = self.low_pair_value.cmp(&other.low_pair_value);
-        if cmp_low_pair_value != Ordering::Equal {
-            return cmp_low_pair_value;
-        }
-        self.remaining_card.cmp(&other.remaining_card)
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Debug)]
 struct ThreeOfAKindData {
     three_of_a_kind_value: u8,
     remaining_cards: Vec<u8>,
@@ -202,23 +144,6 @@ impl ThreeOfAKindData {
             three_of_a_kind_value,
             remaining_cards,
         }
-    }
-}
-
-impl PartialOrd for ThreeOfAKindData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for ThreeOfAKindData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let cmp_value = self.three_of_a_kind_value.cmp(&other.three_of_a_kind_value);
-        if cmp_value != Ordering::Equal {
-            return cmp_value;
-        }
-        HighCardData::new(self.remaining_cards.clone())
-            .cmp(&HighCardData::new(other.remaining_cards.clone()))
     }
 }
 
@@ -260,7 +185,7 @@ impl Ord for StraightData {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct FullHouseData {
     three_of_a_kind_value: u8,
     pair_value: u8,
@@ -275,23 +200,7 @@ impl FullHouseData {
     }
 }
 
-impl PartialOrd for FullHouseData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for FullHouseData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let cmp_three = self.three_of_a_kind_value.cmp(&other.three_of_a_kind_value);
-        if cmp_three != Ordering::Equal {
-            return cmp_three;
-        }
-        self.pair_value.cmp(&other.pair_value)
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug)]
 struct FourOfAKindData {
     four_of_a_kind_value: u8,
     remaining_card: u8,
@@ -306,22 +215,6 @@ impl FourOfAKindData {
     }
 }
 
-impl PartialOrd for FourOfAKindData {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
-    }
-}
-
-impl Ord for FourOfAKindData {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let cmp = self.four_of_a_kind_value.cmp(&other.four_of_a_kind_value);
-        if cmp != Ordering::Equal {
-            return cmp;
-        }
-        self.remaining_card.cmp(&other.remaining_card)
-    }
-}
-
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug)]
 enum HandType {
     HighCard(HighCardData),
@@ -332,18 +225,17 @@ enum HandType {
     Flush(HighCardData),
     FullHouse(FullHouseData),
     FourOfAKind(FourOfAKindData),
-    StraightFlush(HighCardData),
+    StraightFlush(StraightData),
 }
 
-#[derive(Eq, Debug)]
+#[derive(Eq, Debug, Ord, PartialOrd, PartialEq)]
 struct PokerHand {
     hand_type: HandType,
 }
 
 impl FromStr for PokerHand {
-    
     type Err = String;
-    fn from_str(str_hand: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> { 
+    fn from_str(str_hand: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
         let mut cards: Vec<Card> = Vec::new();
         let split = str_hand.split(' ');
         for s in split {
@@ -399,20 +291,20 @@ impl FromStr for PokerHand {
 
         if is_flush {
             if is_straight {
-                return Ok(PokerHand::new(
-                    HandType::StraightFlush(HighCardData::new(sorted_numeric_values)),
-                ));
+                return Ok(PokerHand::new(HandType::StraightFlush(StraightData::new(
+                    sorted_numeric_values,
+                ))));
             } else {
-                return Ok(PokerHand::new(
-                    HandType::Flush(HighCardData::new(sorted_numeric_values)),
-                ));
+                return Ok(PokerHand::new(HandType::Flush(HighCardData::new(
+                    sorted_numeric_values,
+                ))));
             }
         }
 
         if is_straight {
-            return Ok(PokerHand::new(
-                HandType::Straight(StraightData::new(sorted_numeric_values)),
-            ));
+            return Ok(PokerHand::new(HandType::Straight(StraightData::new(
+                sorted_numeric_values,
+            ))));
         }
 
         let mut has_three = false;
@@ -428,9 +320,10 @@ impl FromStr for PokerHand {
                     .iter()
                     .filter(|v| *v != &key)
                     .collect();
-                return Ok(PokerHand::new(
-                    HandType::FourOfAKind(FourOfAKindData::new(key, *the_other_card[0])),
-                ));
+                return Ok(PokerHand::new(HandType::FourOfAKind(FourOfAKindData::new(
+                    key,
+                    *the_other_card[0],
+                ))));
             } else if value == 3 {
                 has_three = true;
                 three_of_a_kind_value = key;
@@ -442,20 +335,18 @@ impl FromStr for PokerHand {
 
         if has_three {
             if pair_count == 1 {
-                return Ok(PokerHand::new(
-                    HandType::FullHouse(FullHouseData::new(three_of_a_kind_value, pairs[0])),
-                ));
+                return Ok(PokerHand::new(HandType::FullHouse(FullHouseData::new(
+                    three_of_a_kind_value,
+                    pairs[0],
+                ))));
             } else {
                 let remaining_cards: Vec<u8> = sorted_numeric_values
                     .into_iter()
                     .filter(|v| *v != three_of_a_kind_value)
                     .collect();
-                return Ok(PokerHand::new(
-                    HandType::ThreeOfAKind(ThreeOfAKindData::new(
-                        three_of_a_kind_value,
-                        remaining_cards,
-                    )),
-                ));
+                return Ok(PokerHand::new(HandType::ThreeOfAKind(
+                    ThreeOfAKindData::new(three_of_a_kind_value, remaining_cards),
+                )));
             }
         }
 
@@ -466,13 +357,11 @@ impl FromStr for PokerHand {
                 .iter()
                 .filter(|v| *v != &highest_pair && *v != &lowest_pair)
                 .collect();
-            return Ok(PokerHand::new(
-                HandType::TwoPairs(TwoPairsData::new(
-                    highest_pair,
-                    lowest_pair,
-                    *the_other_card[0],
-                )),
-            ));
+            return Ok(PokerHand::new(HandType::TwoPairs(TwoPairsData::new(
+                highest_pair,
+                lowest_pair,
+                *the_other_card[0],
+            ))));
         }
 
         if pair_count == 1 {
@@ -481,23 +370,21 @@ impl FromStr for PokerHand {
                 .into_iter()
                 .filter(|v| *v != pair_value)
                 .collect();
-            return Ok(PokerHand::new(
-                HandType::OnePair(OnePairData::new(pair_value, remaining_cards)),
-            ));
+            return Ok(PokerHand::new(HandType::OnePair(OnePairData::new(
+                pair_value,
+                remaining_cards,
+            ))));
         }
 
-        Ok(PokerHand::new(
-            HandType::HighCard(HighCardData::new(sorted_numeric_values)),
-        ))
+        Ok(PokerHand::new(HandType::HighCard(HighCardData::new(
+            sorted_numeric_values,
+        ))))
     }
 }
 
 impl PokerHand {
-
     fn new(hand_type: HandType) -> Self {
-        Self {
-            hand_type,
-        }
+        Self { hand_type }
     }
 
     fn is_straight(
@@ -519,24 +406,6 @@ impl PokerHand {
         last_card_numeric_value: u8,
     ) -> bool {
         straight_counter == 4 && starts_at_two && last_card_numeric_value == Card::ACE
-    }
-}
-
-impl Ord for PokerHand {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.hand_type.cmp(&other.hand_type)
-    }
-}
-
-impl PartialOrd for PokerHand {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for PokerHand {
-    fn eq(&self, other: &Self) -> bool {
-        self.hand_type == other.hand_type
     }
 }
 
