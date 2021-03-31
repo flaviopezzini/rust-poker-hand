@@ -2,7 +2,7 @@
 ///
 /// Note the type signature: this function should return _the same_ reference to
 /// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
-use std::cmp::Ordering;
+use std::{cmp::Ordering, str::FromStr};
 use std::collections::HashMap;
 use std::{cmp, convert::TryFrom};
 
@@ -34,13 +34,10 @@ struct Card {
     numeric_value: u8,
 }
 
-impl Card {
-    const ACE: u8 = 14;
-    const KING: u8 = 13;
-    const QUEEN: u8 = 12;
-    const JACK: u8 = 11;
-
-    fn new(str_card: &str) -> Result<Self, String> {
+impl FromStr for Card {
+    
+    type Err = String;
+    fn from_str(str_card: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> { 
         let size = str_card.len();
         if !(2..=3).contains(&size) {
             return Err("Invalid card length".into());
@@ -75,10 +72,21 @@ impl Card {
             Err(err) => return Err(err),
         };
 
-        Ok(Self {
+        Ok(Card::new(suit, numeric_value))
+    }
+}
+
+impl Card {
+    const ACE: u8 = 14;
+    const KING: u8 = 13;
+    const QUEEN: u8 = 12;
+    const JACK: u8 = 11;
+
+    fn new(suit: Suit, numeric_value: u8) -> Self {
+        Self {
             suit,
             numeric_value,
-        })
+        }
     }
 }
 
@@ -344,24 +352,18 @@ impl HandType {
 }
 
 #[derive(Eq, Debug)]
-struct PokerHand<'a> {
-    str_hand: &'a str,
+struct PokerHand {
     hand_type: HandType,
 }
 
-impl<'a> PokerHand<'a> {
-    fn new_from_values(str_hand: &'a str, hand_type: HandType) -> Self {
-        Self {
-            str_hand,
-            hand_type,
-        }
-    }
-
-    fn new(str_hand: &'a str) -> Result<Self, String> {
+impl FromStr for PokerHand {
+    
+    type Err = String;
+    fn from_str(str_hand: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> { 
         let mut cards: Vec<Card> = Vec::new();
         let split = str_hand.split(' ');
         for s in split {
-            let possible_new_card = Card::new(s);
+            let possible_new_card = Card::from_str(s);
             let new_card = match possible_new_card {
                 Ok(card) => card,
                 Err(_) => return Err("Cannot create card".into()),
@@ -413,21 +415,18 @@ impl<'a> PokerHand<'a> {
 
         if is_flush {
             if is_straight {
-                return Ok(PokerHand::new_from_values(
-                    str_hand,
+                return Ok(PokerHand::new(
                     HandType::StraightFlush(HighCardData::new(sorted_numeric_values)),
                 ));
             } else {
-                return Ok(PokerHand::new_from_values(
-                    str_hand,
+                return Ok(PokerHand::new(
                     HandType::Flush(HighCardData::new(sorted_numeric_values)),
                 ));
             }
         }
 
         if is_straight {
-            return Ok(PokerHand::new_from_values(
-                str_hand,
+            return Ok(PokerHand::new(
                 HandType::Straight(StraightData::new(sorted_numeric_values)),
             ));
         }
@@ -445,8 +444,7 @@ impl<'a> PokerHand<'a> {
                     .iter()
                     .filter(|v| *v != &key)
                     .collect();
-                return Ok(PokerHand::new_from_values(
-                    str_hand,
+                return Ok(PokerHand::new(
                     HandType::FourOfAKind(FourOfAKindData::new(key, *the_other_card[0])),
                 ));
             } else if value == 3 {
@@ -460,8 +458,7 @@ impl<'a> PokerHand<'a> {
 
         if has_three {
             if pair_count == 1 {
-                return Ok(PokerHand::new_from_values(
-                    str_hand,
+                return Ok(PokerHand::new(
                     HandType::FullHouse(FullHouseData::new(three_of_a_kind_value, pairs[0])),
                 ));
             } else {
@@ -469,8 +466,7 @@ impl<'a> PokerHand<'a> {
                     .into_iter()
                     .filter(|v| *v != three_of_a_kind_value)
                     .collect();
-                return Ok(PokerHand::new_from_values(
-                    str_hand,
+                return Ok(PokerHand::new(
                     HandType::ThreeOfAKind(ThreeOfAKindData::new(
                         three_of_a_kind_value,
                         remaining_cards,
@@ -486,8 +482,7 @@ impl<'a> PokerHand<'a> {
                 .iter()
                 .filter(|v| *v != &highest_pair && *v != &lowest_pair)
                 .collect();
-            return Ok(PokerHand::new_from_values(
-                str_hand,
+            return Ok(PokerHand::new(
                 HandType::TwoPairs(TwoPairsData::new(
                     highest_pair,
                     lowest_pair,
@@ -502,16 +497,23 @@ impl<'a> PokerHand<'a> {
                 .into_iter()
                 .filter(|v| *v != pair_value)
                 .collect();
-            return Ok(PokerHand::new_from_values(
-                str_hand,
+            return Ok(PokerHand::new(
                 HandType::OnePair(OnePairData::new(pair_value, remaining_cards)),
             ));
         }
 
-        Ok(PokerHand::new_from_values(
-            str_hand,
+        Ok(PokerHand::new(
             HandType::HighCard(HighCardData::new(sorted_numeric_values)),
         ))
+    }
+}
+
+impl PokerHand {
+
+    fn new(hand_type: HandType) -> Self {
+        Self {
+            hand_type,
+        }
     }
 
     fn is_straight(
@@ -536,7 +538,7 @@ impl<'a> PokerHand<'a> {
     }
 }
 
-impl<'a> Ord for PokerHand<'a> {
+impl Ord for PokerHand {
     fn cmp(&self, other: &Self) -> Ordering {
         let rank_cmp = self.hand_type.rank().cmp(&other.hand_type.rank());
         if rank_cmp != Ordering::Equal {
@@ -546,13 +548,13 @@ impl<'a> Ord for PokerHand<'a> {
     }
 }
 
-impl<'a> PartialOrd for PokerHand<'a> {
+impl PartialOrd for PokerHand {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> PartialEq for PokerHand<'a> {
+impl PartialEq for PokerHand {
     fn eq(&self, other: &Self) -> bool {
         self.hand_type == other.hand_type
     }
@@ -567,27 +569,26 @@ pub fn winning_hands<'a>(hands: &[&'a str]) -> Option<Vec<&'a str>> {
         return Some(vec![hands[0]]);
     }
 
-    let mut processed_hands: Vec<PokerHand> = Vec::new();
+    let mut processed_hands: Vec<(&str, PokerHand)> = Vec::new();
 
     for hand in hands {
-        let processed_hand = match PokerHand::new(hand) {
+        let processed_hand = match PokerHand::from_str(hand) {
             Ok(processed_hand) => processed_hand,
             Err(_) => return None,
         };
 
-        processed_hands.push(processed_hand);
+        processed_hands.push((hand, processed_hand));
     }
 
-    processed_hands.sort();
-    processed_hands.reverse();
+    processed_hands.sort_unstable_by(|a, b| b.1.cmp(&a.1));
 
     let mut result = Vec::new();
     let highest_hand = &processed_hands[0];
-    result.push(highest_hand.str_hand);
+    result.push(highest_hand.0);
 
     for processed_hand in processed_hands.iter().skip(1) {
-        if processed_hand.cmp(highest_hand) == Ordering::Equal {
-            result.push(processed_hand.str_hand);
+        if processed_hand.1.cmp(&highest_hand.1) == Ordering::Equal {
+            result.push(processed_hand.0);
         } else {
             break;
         }
