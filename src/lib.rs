@@ -324,31 +324,15 @@ impl Ord for FourOfAKindData {
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug)]
 enum HandType {
-    StraightFlush(HighCardData),
-    FourOfAKind(FourOfAKindData),
-    FullHouse(FullHouseData),
-    Flush(HighCardData),
-    Straight(StraightData),
-    ThreeOfAKind(ThreeOfAKindData),
-    TwoPairs(TwoPairsData),
-    OnePair(OnePairData),
     HighCard(HighCardData),
-}
-
-impl HandType {
-    fn rank(&self) -> u8 {
-        match self {
-            HandType::StraightFlush(_) => 9,
-            HandType::FourOfAKind(_) => 8,
-            HandType::FullHouse(_) => 7,
-            HandType::Flush(_) => 6,
-            HandType::Straight(_) => 5,
-            HandType::ThreeOfAKind(_) => 4,
-            HandType::TwoPairs(_) => 3,
-            HandType::OnePair(_) => 2,
-            HandType::HighCard(_) => 1,
-        }
-    }
+    OnePair(OnePairData),
+    TwoPairs(TwoPairsData),
+    ThreeOfAKind(ThreeOfAKindData),
+    Straight(StraightData),
+    Flush(HighCardData),
+    FullHouse(FullHouseData),
+    FourOfAKind(FourOfAKindData),
+    StraightFlush(HighCardData),
 }
 
 #[derive(Eq, Debug)]
@@ -540,10 +524,6 @@ impl PokerHand {
 
 impl Ord for PokerHand {
     fn cmp(&self, other: &Self) -> Ordering {
-        let rank_cmp = self.hand_type.rank().cmp(&other.hand_type.rank());
-        if rank_cmp != Ordering::Equal {
-            return rank_cmp;
-        }
         self.hand_type.cmp(&other.hand_type)
     }
 }
