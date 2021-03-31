@@ -28,10 +28,52 @@ impl TryFrom<char> for Suit {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+enum Rank {
+    NoValue = 0,
+    Two = 2,
+    Three = 3,
+    Four = 4,
+    Five = 5,
+    Six = 6,
+    Seven = 7,
+    Eight = 8,
+    Nine = 9,
+    Ten = 10,
+    Jack = 11,
+    Queen = 12,
+    King = 13,
+    Ace = 14,
+}
+
+impl FromStr for Rank {
+
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "2" => Ok(Rank::Two),
+            "3" => Ok(Rank::Three),
+            "4" => Ok(Rank::Four),
+            "5" => Ok(Rank::Five),
+            "6" => Ok(Rank::Six),
+            "7" => Ok(Rank::Seven),
+            "8" => Ok(Rank::Eight),
+            "9" => Ok(Rank::Nine),
+            "10" => Ok(Rank::Ten),
+            "J" => Ok(Rank::Jack),
+            "Q" => Ok(Rank::Queen),
+            "K" => Ok(Rank::King),
+            "A" => Ok(Rank::Ace),
+            _ => Err("Invalid rank".into()),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Card {
     suit: Suit,
-    numeric_value: u8,
+    rank: Rank,
 }
 
 impl FromStr for Card {
@@ -42,49 +84,26 @@ impl FromStr for Card {
             return Err("Invalid card length".into());
         }
 
-        let value = match size {
-            2 => str_card.chars().next().unwrap(),
-            3 => {
-                let first_2: &str = &str_card[0..2];
-                if first_2 == "10" {
-                    'T'
-                } else {
-                    return Err(format!("Invalid card: {}", str_card));
-                }
-            }
-            _ => panic!("Invalid card length"),
+        let value = if size == 2 {
+            &str_card[0..1]
+        } else {
+            &str_card[0..2]
         };
 
-        let numeric_value = match value {
-            '2'..='9' => value.to_digit(10).unwrap() as u8,
-            'T' => 10,
-            'J' => Card::JACK,
-            'Q' => Card::QUEEN,
-            'K' => Card::KING,
-            'A' => Card::ACE,
-            _ => return Err("Invalid value".into()),
-        };
+        let rank = Rank::from_str(value)?;
 
         let suit = str_card.chars().nth(size - 1).unwrap();
-        let suit = match Suit::try_from(suit) {
-            Ok(suit) => suit,
-            Err(err) => return Err(err),
-        };
+        let suit = Suit::try_from(suit)?;
 
-        Ok(Card::new(suit, numeric_value))
+        Ok(Card::new(suit, rank))
     }
 }
 
 impl Card {
-    const ACE: u8 = 14;
-    const KING: u8 = 13;
-    const QUEEN: u8 = 12;
-    const JACK: u8 = 11;
-
-    fn new(suit: Suit, numeric_value: u8) -> Self {
+    fn new(suit: Suit, rank: Rank) -> Self {
         Self {
             suit,
-            numeric_value,
+            rank,
         }
     }
 }
@@ -169,13 +188,13 @@ impl Ord for StraightData {
         let sv = &self.cards;
         let ov = &other.cards;
         let self_vec: Vec<u8>;
-        if sv[0] == 2 && sv[sv.len() - 1] == Card::ACE {
+        if sv[0] == Rank::Two as u8 && sv.iter().last().unwrap() == &(Rank::Ace as u8) {
             self_vec = vec![1, sv[0], sv[1], sv[2], sv[3]];
         } else {
             self_vec = sv.clone();
         }
         let other_vec: Vec<u8>;
-        if ov[0] == 2 && ov[ov.len() - 1] == Card::ACE {
+        if ov[0] == Rank::Two as u8 && ov.iter().last().unwrap() == &(Rank::Ace as u8) {
             other_vec = vec![1, ov[0], ov[1], ov[2], ov[3]];
         } else {
             other_vec = ov.clone();
@@ -247,11 +266,11 @@ impl FromStr for PokerHand {
             cards.push(new_card);
         }
 
-        cards.sort_by(|a, b| a.numeric_value.cmp(&b.numeric_value));
+        cards.sort_by(|a, b| a.rank.cmp(&b.rank));
 
         let first_card = &cards[0];
         let mut previous_suit = &first_card.suit;
-        let mut previous_value = 0;
+        let mut previous_value = Rank::NoValue;
         let mut suit_counter = 0;
         let mut straight_counter = 1;
 
@@ -266,28 +285,28 @@ impl FromStr for PokerHand {
                 suit_counter = 0;
                 previous_suit = &card.suit;
             }
-            if previous_value == 0 {
-                if card.numeric_value == 2 {
+            if previous_value == Rank::NoValue {
+                if card.rank == Rank::Two {
                     starts_at_two = true;
                 } else {
-                    previous_value = card.numeric_value;
+                    previous_value = card.rank;
                 }
-            } else if card.numeric_value == (previous_value + 1) {
+            } else if card.rank as u8 == (previous_value as u8 + 1) {
                 straight_counter += 1;
             }
-            if card.numeric_value != previous_value {
-                previous_value = card.numeric_value;
+            if card.rank != previous_value {
+                previous_value = card.rank;
             }
-            *kind_count_map.entry(card.numeric_value).or_insert(0) += 1;
+            *kind_count_map.entry(card.rank as u8).or_insert(0) += 1;
         }
         let is_flush = suit_counter == 5;
         let is_straight = PokerHand::is_straight(
             straight_counter,
             starts_at_two,
-            cards[cards.len() - 1].numeric_value,
+            cards.iter().last().unwrap().rank as u8,
         );
 
-        let sorted_numeric_values: Vec<u8> = cards.iter().map(|c| c.numeric_value).collect();
+        let sorted_numeric_values: Vec<u8> = cards.iter().map(|c| c.rank as u8).collect();
 
         if is_flush {
             if is_straight {
@@ -405,7 +424,7 @@ impl PokerHand {
         starts_at_two: bool,
         last_card_numeric_value: u8,
     ) -> bool {
-        straight_counter == 4 && starts_at_two && last_card_numeric_value == Card::ACE
+        straight_counter == 4 && starts_at_two && last_card_numeric_value == Rank::Ace as u8
     }
 }
 
