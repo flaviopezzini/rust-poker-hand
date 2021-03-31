@@ -287,47 +287,40 @@ impl FromStr for PokerHand {
             acc
         });
 
-        let three_of_a_kind_value =
-            kind_count_map
-                .iter()
-                .fold(None, |mut three_of_a_kind, (k, v)| {
-                    if *v == 3 {
-                        three_of_a_kind = Some(k);
-                    }
-                    three_of_a_kind
-                });
-
         let mut pairs: Vec<u8> = Vec::new();
 
+        let four_of_a_kind_value = PokerHand::get_many_cards_with_same_value(&kind_count_map, 4);
+        if let Some(four_value) = four_of_a_kind_value {
+            let the_other_card: Vec<&u8> = sorted_numeric_values
+                .iter()
+                .filter(|v| **v != four_value)
+                .collect();
+            return Ok(PokerHand::new(HandType::FourOfAKind(FourOfAKindData::new(
+                four_value,
+                *the_other_card[0],
+            ))));
+        }
+
         for (key, value) in &kind_count_map {
-            if *value == 4 {
-                let the_other_card: Vec<&u8> =
-                    sorted_numeric_values.iter().filter(|v| v != &key).collect();
-                return Ok(PokerHand::new(HandType::FourOfAKind(FourOfAKindData::new(
-                    *key,
-                    *the_other_card[0],
-                ))));
-            } else if *value == 3 {
-                //has_three = true;
-                //three_of_a_kind_value = key;
-            } else if *value == 2 {
+            if *value == 2 {
                 pairs.push(*key);
             }
         }
 
+        let three_of_a_kind_value = PokerHand::get_many_cards_with_same_value(&kind_count_map, 3);
         if let Some(three_value) = three_of_a_kind_value {
             if pairs.len() == 1 {
                 return Ok(PokerHand::new(HandType::FullHouse(FullHouseData::new(
-                    *three_value,
+                    three_value,
                     pairs[0],
                 ))));
             } else {
                 let remaining_cards: Vec<u8> = sorted_numeric_values
                     .into_iter()
-                    .filter(|v| v != three_value)
+                    .filter(|v| *v != three_value)
                     .collect();
                 return Ok(PokerHand::new(HandType::ThreeOfAKind(
-                    ThreeOfAKindData::new(*three_value, remaining_cards),
+                    ThreeOfAKindData::new(three_value, remaining_cards),
                 )));
             }
         }
@@ -387,6 +380,20 @@ impl PokerHand {
             && cards[2].rank == Rank::Four
             && cards[3].rank == Rank::Five
             && cards[4].rank == Rank::Ace
+    }
+
+    fn get_many_cards_with_same_value(
+        kind_count_map: &HashMap<u8, usize>,
+        how_many: usize,
+    ) -> Option<u8> {
+        return kind_count_map
+            .iter()
+            .fold(None, |mut three_of_a_kind, (k, v)| {
+                if *v == how_many {
+                    three_of_a_kind = Some(*k);
+                }
+                three_of_a_kind
+            });
     }
 }
 
